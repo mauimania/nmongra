@@ -1,0 +1,337 @@
+@charset"utf-8";
+
+/* all of them */
+.all_checkboxes {width:auto;}
+
+/* all the labels */
+.all_checkboxes label{
+    float:left; /* so every checkbox is next to the previus one */
+    display:table-cell; /* so the content width will match the longer text */
+}
+
+.graphtype label{
+    width:55px;
+}
+
+.lpartable label{
+    width:85px;
+}
+
+.width_scale label{
+    width:25px;
+}
+
+/* Or however much space you need for the form.s labels */
+.fixed_time label{
+    width:50px;
+}
+
+.newheight label{
+    width:25px;
+}
+
+.newymax label{
+    width:25px;
+}
+
+/* .all_checkboxes .lpar_checkboxes label{width:33.3%} */
+
+.all_checkboxes label{width:33.3%}
+.lpar_checkboxes label{width:33.3%}
+
+/* #date_value_from, #date_value_until, #time_value { */
+#date_value_from, #date_value_until { 
+  background-image:url("images/clock.png");
+  background-position:right center; background-repeat:no-repeat;
+  border:1px solid #FF6600;color:#000000;font-weight:bold
+}
+
+#time_value_from, #time_value_until { 
+  background-image:url("images/calendar.png");
+  background-position:right center; background-repeat:no-repeat;
+  border:1px solid #FF6600;color:#000000;font-weight:bold;
+}
+
+#width_box {
+  border:1px solid #FF6600;color:#000000;font-weight:bold;
+}
+
+#nmon_file_field { 
+  border:1px solid #FF6600;color:#000000;font-weight:bold;
+}
+
+label {
+	width:100px;    /*Or however much space you need for the form.s labels*/
+    	float:left;
+}
+
+.style-radio0 {
+	color:blue;
+}
+
+#time_value {
+  margin-right:2px;
+}
+
+#time_unit {
+  margin-right:2px;
+}
+
+select {
+  border:1px solid #FF6600;
+  color:#000000;
+  font-weight:bold;
+  font-family:Arial, Helvetica, sans-serif;
+}
+
+.sep_form {
+  margin-top:2px;
+}
+
+fieldset {
+	padding:5px;
+        margin-top:5px;
+}
+
+legend {
+	font-family:Arial, Helvetica, sans-serif;
+	font-size: 90%;
+	letter-spacing: -1px;
+	font-weight: bold;
+	line-height: 1.1;
+	color:#fff;
+	background: #666;
+	border: 1px solid #333;
+	padding: 2px 6px;
+}
+
+#nmon2graphite_form {
+  	width:43%;
+	padding-top:5px;
+	float:left;
+	font-family:Arial, Helvetica, sans-serif;
+}
+
+.lpar_choice {
+	display:none;
+	float:left;
+	font-size: 85%;
+}
+
+.newfontsize {
+	float:left;
+}
+
+.newwidth {
+	float:left;
+}
+
+.inject {
+	float:left;
+	font-size: 85%;
+}
+
+.timeperiods {
+	float:left;
+	font-size: 85%;
+}
+
+.hideleft {
+	float:left;
+}
+
+.prepend {
+	float:left;
+}
+
+.lpar_checkboxes {
+  	width:100%;
+	float:left;
+}
+
+.lpar_choice_con1 {
+  	width:26%;
+	float:left;
+}
+
+.lpar_choice_con2 {
+  	width:4%;
+	float:left;
+	margin-right:20px;
+}
+
+.fixed_time {
+	clear:left;
+	float:left;
+	font-size: 85%;
+}
+
+.fixed_time #date_value_from {
+	width:120px;
+}
+
+.fixed_time #date_value_until {
+	width:120px;
+}
+
+.fixed_time #time_value_from {
+	width:80px;
+}
+
+.fixed_time #time_value_until {
+	width:80px;
+}
+
+.lpartable {
+	float:left;
+}
+
+.graphtype {
+	float:left;
+	font-size: 85%;
+   	width:300px;
+}
+
+.mode {
+	float:left;
+}
+
+.cont4chrome {
+	display:none;
+}
+
+.real_time {
+	display:none;
+	float:left;
+	font-size: 85%;
+}
+
+.newheight {
+	float:left;
+}
+
+.newymax {
+	float:left;
+}
+
+.width_scale {
+	float:left;
+}
+
+.prepend {
+	float:left;
+}
+
+.mygraph {
+	float:left;
+}
+
+.mygraphel {
+	float:left;
+}
+
+.mygraphel2 {
+	float:right;
+}
+
+#template_box {
+	width:110px;
+}
+
+#mygraph_box {
+ 	font-size: 110%;
+}
+
+.all_checkboxes {
+	float:left;
+}
+
+#all_graphs {
+	background-color:#fff;
+	width:56%;
+	padding:5px;
+	margin-top:5px;
+	float:right;
+	color:#666666;
+}
+
+.checkboxes {
+  font-size:80%;
+}
+
+.style_checkbox {
+  font-weight: normal;
+}
+
+#top_title {
+	width:230px;
+	height:50px;
+}
+
+h1 {
+        background-image:url("images/graph.png");
+	background-position:right center; background-repeat:no-repeat;
+	font-family:Arial, Helvetica, sans-serif;
+	font-size: 175%;
+	letter-spacing: -1px;
+	font-weight: normal;
+	line-height: 1.1;
+	color:#333;
+}
+
+img {
+  border-style: none;
+}
+
+.form {
+	margin:0;
+	padding:0;
+}
+
+#menu_container {
+	position:fixed;
+	z-index: -1;
+}
+
+.clear {
+	clear:left;
+}
+
+#progressbox {
+    border: 1px solid #0099CC;
+    padding: 1px;
+    position:relative;
+    width:400px;
+    border-radius: 3px;
+    margin: 10px;
+    display:none;
+    text-align:left;
+}
+
+#progressbar {
+    height:20px;
+    border-radius: 3px;
+    background-color: #003333;
+    width:1%;
+}
+
+#statustxt {
+    top:3px;
+    left:30%;
+    position:absolute;
+    display:inline-block;
+    color: #000000;
+}
+
+#lpar_choice_radio {
+/*  height:215px; */
+    height:115px;
+    overflow-y:auto; 
+    resize:vertical;
+}
+
+#metric_choice {
+    height:355px;
+    overflow-y:auto; 
+    resize:vertical;
+}

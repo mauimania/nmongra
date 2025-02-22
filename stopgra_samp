@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -x
+
+################
+NMONGRAID=samp
+################
+
+docker stop nmongra_${NMONGRAID}
+sleep 3
+docker rm nmongra_${NMONGRAID}
+sleep 3
+
+docker ps | grep nmongra_${NMONGRAID} | grep -v grep

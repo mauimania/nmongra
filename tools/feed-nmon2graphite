@@ -1,0 +1,619 @@
+#!/usr/bin/perl
+# Program name: nmon2graphite cgi perl script.
+# Purpose: perl script to feed graphite backend with nmon output.
+# Author: Benoit C chmod666.org.
+# Contact: bleachneeded@gmail.com
+# Disclaimer: this programm is provided "as is". please contact me if you found any bugs.
+# Last update :  Apr 17, 2013
+# Version : 0.1a
+# This work is licensed under the Creative Commons Attribution-ShareAlike 3.0 Unported License.
+# To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/3.0/ or send
+# a letter to Creative Commons, 444 Castro Street, Suite 900, Mountain View, California, 94041, USA.
+#
+# Program improved by mauimania
+#
+
+use strict;
+use warnings;
+use Switch;
+use Time::Local;
+use IO::Socket::INET;
+use Data::Dumper;
+use Getopt::Long;
+use List::Util qw/ min max sum /;
+
+# sub function to retun averange & maximum for numbers array
+sub avg_max_sum {
+  my $sumval = sum(@_);
+  return $sumval / @_, max(@_), $sumval;
+}
+
+# sub function to print to log
+sub print_to_log {
+  my $f_log_file = shift;
+  my $f_is_debug = shift;
+  my $f_message  = shift;
+  
+  if ( $f_is_debug ) {
+      print $f_log_file $f_message;
+  }
+}
+
+# sub function to print help
+sub print_help {
+  print STDERR << "EOF";
+usage: $0 [-h] [-l log_file] [-i graphite_server_ip] [-p graphite_server_port] [-a] [-g] [-c ZZZZ_count] [-s sleep_seconds] [-f sleep_seconds] [-y %CPU] [-x toptype] [-v] [-t time_diff]
+  -h print help
+  -l log file path
+  -i graphite server ip address
+  -p graphite server port number
+  -a include all logical CPUs stanza (CPU01, PCPU01, SCPU01)
+  -g ignore DISK* stanza (ignore DISK*, DISKBUSY, DISKSERV, DISKREADSERV, DISKWRITESERV, DISKWAIT)
+  -c ZZZZ count
+  -s sleep seconds
+  -f sleep for *.wsp files creation during T0001
+  -y %CPU (ignore TOP lower than CPU%)
+  -x 0: no TOP, 1: TOPcmd grouping, 2: default, TOPcmd.UARGfullcmd grouping
+  -v verbose with ZZZZ stanza
+  -t time difference in seconds
+EOF
+  exit 1;
+}
+
+my $graphite_box_ip    = '';
+my $graphite_box_port  = '2003';
+my $graphite_box_proto = 'tcp';
+my $log_file           = '/tmp/nmon2graphite.log';
+my $ignoredisk = 0;
+my $incl_lcpu = 0;
+my $help;
+my $debug = 0;
+my $time_diff = 0;
+my $verbosezzzz = 0;
+my $zzzzcount = 0;
+my $sleepseconds = 0;
+my $zzzznum = 1;
+my $metricscount = 0;
+my $firstdiskstanza = 0;
+my $toptype = 2;
+my $wspsleep = 0;
+my $topcpuper = 0;
+
+my $host_name   = "";
+my $first_zzzz  = 1;
+my $skip        = 0;
+
+my $timestamp;
+my $new_timestamp;
+my %hash_of_hashes;
+
+my $AAA = "AAA";
+my $ZZZZ = "ZZZZ";
+my %global_informations;
+my $socket;
+my $lineno = 0;
+my %months = ( "JAN", "00", "FEB", "01", "MAR", "02", "APR", "03", "MAY", "04", "JUN", "05", "JUL", "06", "AUG", "07", "SEP", "08", "OCT", "09", "NOV", "10", "DEC", "11");
+my $isaix = 0;
+my $send_to_socket_string;
+my $final_send_to_socket_string;
+
+my @topdata;
+my $topindex = 0;
+my $prev_topindex = 0;
+my $tmptopindex = 0;
+my %top_numproc;
+my %per_cpu;
+my %per_usr;
+my %per_sys;
+my %threads;
+my %size;
+my %restext;
+my %resdata;
+my %chario;
+my %per_ram;
+my %paging;
+my %pgspout;
+my ($avg_per_cpu, $max_per_cpu, $sum_per_cpu);
+my ($avg_per_usr, $max_per_usr, $sum_per_usr);
+my ($avg_per_sys, $max_per_sys, $sum_per_sys);
+my ($avg_threads, $max_threads, $sum_threads);
+my ($avg_size, $max_size, $sum_size);
+my ($avg_restext, $max_restext, $sum_restext);
+my ($avg_resdata, $max_resdata, $sum_resdata);
+my ($avg_chario, $max_chario, $sum_chario);
+my ($avg_per_ram, $max_per_ram, $sum_per_ram);
+my ($avg_paging, $max_paging, $sum_paging);
+my ($avg_pgspout, $max_pgspout, $sum_pgspout);
+my $newtop_str;
+my $pgspoutsize;
+
+# Process NEWTOP for ZZZZ from T0002
+
+sub process_newtop {
+    my $newtop_timestamp;
+    my $cmd_fullcmd;
+
+    if (scalar(@topdata) == 0) {
+	return;
+    }
+    $newtop_timestamp =$topdata[0][0];
+    for ( $tmptopindex = 0; $tmptopindex < scalar(@topdata); $tmptopindex++ ) {
+        $cmd_fullcmd = "$topdata[$tmptopindex][12]".".$topdata[$tmptopindex][13]";
+        if (defined $top_numproc{$cmd_fullcmd}) {
+                $top_numproc{$cmd_fullcmd} = $top_numproc{$cmd_fullcmd} + 1;
+        } else {
+                $top_numproc{$cmd_fullcmd} = 1;
+        }
+        push(@{$per_cpu{$cmd_fullcmd}}, $topdata[$tmptopindex][1]);
+        push(@{$per_usr{$cmd_fullcmd}}, $topdata[$tmptopindex][2]);
+        push(@{$per_sys{$cmd_fullcmd}}, $topdata[$tmptopindex][3]);
+        push(@{$threads{$cmd_fullcmd}}, $topdata[$tmptopindex][4]);
+        push(@{$size{$cmd_fullcmd}},    $topdata[$tmptopindex][5]);
+        push(@{$restext{$cmd_fullcmd}}, $topdata[$tmptopindex][6]);
+        push(@{$resdata{$cmd_fullcmd}}, $topdata[$tmptopindex][7]);
+        push(@{$chario{$cmd_fullcmd}},  $topdata[$tmptopindex][8]);
+        push(@{$per_ram{$cmd_fullcmd}}, $topdata[$tmptopindex][9]);
+        push(@{$paging{$cmd_fullcmd}},  $topdata[$tmptopindex][10]);
+        push(@{$pgspout{$cmd_fullcmd}}, $topdata[$tmptopindex][14]);
+    } # end for
+
+    foreach my $keyval (keys (%top_numproc)) {
+        ($avg_per_cpu, $max_per_cpu, $sum_per_cpu) = avg_max_sum(@{$per_cpu{$keyval}});
+        ($avg_per_usr, $max_per_usr, $sum_per_usr) = avg_max_sum(@{$per_usr{$keyval}});
+        ($avg_per_sys, $max_per_sys, $sum_per_sys) = avg_max_sum(@{$per_sys{$keyval}});
+        ($avg_threads, $max_threads, $sum_threads) = avg_max_sum(@{$threads{$keyval}});
+        ($avg_size, $max_size, $sum_size)          = avg_max_sum(@{$size{$keyval}});
+        ($avg_restext, $max_restext, $sum_restext) = avg_max_sum(@{$restext{$keyval}});
+        ($avg_resdata, $max_resdata, $sum_resdata) = avg_max_sum(@{$resdata{$keyval}});
+        ($avg_chario, $max_chario, $sum_chario)    = avg_max_sum(@{$chario{$keyval}});
+        ($avg_per_ram, $max_per_ram, $sum_per_ram) = avg_max_sum(@{$per_ram{$keyval}});
+        ($avg_paging, $max_paging, $sum_paging)    = avg_max_sum(@{$paging{$keyval}});
+        ($avg_pgspout, $max_pgspout, $sum_pgspout) = avg_max_sum(@{$pgspout{$keyval}});
+        $newtop_str = "nmon.$global_informations{serialnumber}.$host_name.newtop";
+
+        $final_send_to_socket_string = "$newtop_str.$keyval.numproc $top_numproc{$keyval} $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.avg_per_cpu $avg_per_cpu $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.avg_per_usr $avg_per_usr $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.avg_per_sys $avg_per_sys $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.avg_threads $avg_threads $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.avg_size $avg_size $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.avg_restext $avg_restext $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.avg_resdata $avg_resdata $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.avg_chario $avg_chario $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.avg_per_ram $avg_per_ram $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.avg_paging $avg_paging $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.avg_pgspout $avg_pgspout $newtop_timestamp\n";
+        print $socket $final_send_to_socket_string;
+        $final_send_to_socket_string = "$newtop_str.$keyval.max_per_cpu $max_per_cpu $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.max_per_usr $max_per_usr $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.max_per_sys $max_per_sys $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.max_threads $max_threads $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.max_size $max_size $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.max_restext $max_restext $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.max_resdata $max_resdata $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.max_chario $max_chario $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.max_per_ram $max_per_ram $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.max_paging $max_paging $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.max_pgspout $max_pgspout $newtop_timestamp\n";
+        print $socket $final_send_to_socket_string;
+        $final_send_to_socket_string = "$newtop_str.$keyval.sum_per_cpu $sum_per_cpu $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.sum_per_usr $sum_per_usr $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.sum_per_sys $sum_per_sys $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.sum_threads $sum_threads $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.sum_size $sum_size $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.sum_restext $sum_restext $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.sum_resdata $sum_resdata $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.sum_chario $sum_chario $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.sum_per_ram $sum_per_ram $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.sum_paging $sum_paging $newtop_timestamp\n";
+        $final_send_to_socket_string = $final_send_to_socket_string."$newtop_str.$keyval.sum_pgspout $sum_pgspout $newtop_timestamp\n";
+        print $socket $final_send_to_socket_string;
+        $final_send_to_socket_string = "";
+    } # end for
+
+    # NEWTOP
+    $topindex = 0;
+    # empty an existing array: assign -1 to its "last index value" or ssign an empty list to the array
+    $#topdata = -1; # @topdata = ();
+    %top_numproc = ();
+    %per_cpu = ();
+    %per_usr = ();
+    %per_sys = ();
+    %threads = ();
+    %size = ();
+    %restext = ();
+    %resdata = ();
+    %chario = ();
+    %per_ram = ();
+    %paging = ();
+    %pgspout = ();
+}
+
+print_help if ( ! GetOptions('h' => \$help, 'l=s' => \$log_file, 'i=s' => \$graphite_box_ip, 'p=i' => \$graphite_box_port, 'a' => \$incl_lcpu, 'g' => \$ignoredisk, 'c=i' => \$zzzzcount, 's=i' => \$sleepseconds, 'f=i' => \$wspsleep, 'y=f' => \$topcpuper, 'x=i' => \$toptype, 'v' => \$verbosezzzz, 't=i' => \$time_diff) or defined $help );
+
+open ( my $fh_handle, '>',  $log_file ) or die "Can't open log file $!\n";
+$| = 1; # forces flush after write/print
+
+%global_informations = qw/progname 0 command 0 version 0 build 0 disks_per_line 0 host 0 user 0 vios 0 aix 0 tl 0 runname 0 time 0 date 0 interval 0 snaphosts 0 hardware 0 subprocessormode 0 cpus 0 kernel 0 serialnumber 0 lparnumbername 0 machinetype 0 nodename 0 timestampsize 0 note0 0 note1 0 note2 0/;
+### AAA,SubprocessorMode Unknown (not yet)
+if ($graphite_box_ip eq '') {
+    $socket = *STDOUT;
+} else {
+    $socket = IO::Socket::INET -> new ( PeerAddr => $graphite_box_ip, PeerPort => $graphite_box_port, Proto => $graphite_box_proto ) or die ("Coult not create socket $!"); # $!: system error string
+}
+
+$global_informations{machinetype} = "Vendor MMMM-TTT"; # IBM / machine type
+$global_informations{serialnumber} = "MMMM-TTT-SerNo";
+
+# nmon2graphite reads standard input
+while ( my $nmon_line = <STDIN> ) {
+	$lineno++;
+  $nmon_line =~ /^$/ and next; # matches if the line is empty, or empty with a newline character at the end
+  $nmon_line =~ /^#/ and next; # matches (thus skipping to the next line) if a '#' is found as 1st character of the line
+  $nmon_line =~ /^ERROR/ and next; # matches (thus skipping to the next line)
+  $nmon_line =~ /^NOTES/ and next; # matches (thus skipping to the next line)
+
+
+  if (($incl_lcpu == 0) and ($nmon_line =~ /^.?CPU[0-9]/)) {
+	next;
+  }
+  $nmon_line =~ /^MEMPAGES16/ and next;
+  if (($ignoredisk != 0) and ($nmon_line =~ /^DISK/)) {
+	next;
+  }
+  # ignore DISKAVGRIO, DISKAVGWIO, DISKRIO, DISKWIO 
+  # ignore DISKRXFER
+  $nmon_line =~ /^DISKRXFER/ and next;
+  if ($nmon_line =~ /^NFS/) {
+	next;
+  }
+  if (($toptype == 0) and ($nmon_line =~ /^TOP/)) {
+	next;
+  }
+  if (($toptype < 2) and ($nmon_line =~ /^UARG/)) {
+	next;
+  }
+
+  my @nmon_current_line_array = split ",", $nmon_line;
+
+  # case 1 : AAA line, information line.
+  if ( $nmon_current_line_array[0] eq $AAA ) {
+    # cannot loop on keys 'cuz special case link command.
+    # switch will be deprecated in futur perl version.
+    switch ($nmon_current_line_array[1]) {
+      case /^progname/       { $global_informations{progname}       = $nmon_current_line_array[2]; }
+      case /^command/        { $global_informations{command}        = $nmon_current_line_array[2]." ".$nmon_current_line_array[3]." ".$nmon_current_line_array[4]; }
+      case /^version/        { $global_informations{version}        = $nmon_current_line_array[2]; }
+      case /^build/          { $global_informations{build}          = $nmon_current_line_array[2]; }
+			#case /^disk_per_line/  { $global_informations{disk_per_line}  = $nmon_current_line_array[2]; }
+      case /^disks_per_line/ { $global_informations{disks_per_line} = $nmon_current_line_array[2]; }
+      case /^host/           { $global_informations{host}           = $nmon_current_line_array[2]; }
+      case /^user/           { $global_informations{user}           = $nmon_current_line_array[2]; }
+      case /^VIOS/           { $global_informations{vios}           = $nmon_current_line_array[2]; $isaix = 1; }
+      case /^AIX/            { $global_informations{aix}            = $nmon_current_line_array[2]; $isaix = 1; }
+      case /^TL/             { $global_informations{tl}             = $nmon_current_line_array[2]; }
+			#case /^runname/        { $global_informations{runame}         = $nmon_current_line_array[2]; }
+      case /^runname/        { $global_informations{runname}        = $nmon_current_line_array[2]; }
+      case /^time/           { $global_informations{time}           = $nmon_current_line_array[2]; }
+      case /^date/           { $global_informations{date}           = $nmon_current_line_array[2]; }
+      case /^interval/       { $global_informations{interval}       = $nmon_current_line_array[2]; }
+      case /^snapshots/      { $global_informations{snapshots}      = $nmon_current_line_array[2]; }
+      case /^hardware/       { $global_informations{hardware}       = $nmon_current_line_array[2]; }
+      case /^cpus/           { $global_informations{cpus}           = $nmon_current_line_array[2]." ".$nmon_current_line_array[3]; } # Max lcpus / desired lcpus
+      case /^kernel/         { $global_informations{kernel}         = $nmon_current_line_array[2]; }
+      case /^SerialNumber/   { $global_informations{serialnumber}   = $nmon_current_line_array[2]; }
+      case /^MachineType/    { $global_informations{machinetype}    = $nmon_current_line_array[2]." ".$nmon_current_line_array[3]; # IBM / machine type
+			       									 my $machinetype = $nmon_current_line_array[3];
+			       									 chomp $machinetype;
+			       									 my $serialnumber = $global_informations{serialnumber};
+			       									 $global_informations{serialnumber} = $machinetype."-".$serialnumber;
+			     									 }
+      case /^NodeName/       { $global_informations{nodename}       = $nmon_current_line_array[2]; }
+      case /^timestampsize/  { $global_informations{timestampsize}  = $nmon_current_line_array[2]; }
+      case /^note0/          { $global_informations{note0}          = $nmon_current_line_array[2]; }
+      case /^note1/          { $global_informations{note1}          = $nmon_current_line_array[2]; }
+      case /^note2/          { $global_informations{note2}          = $nmon_current_line_array[2]; }
+    }
+  } # end of $nmon_current_line_array[0] eq $AAA
+
+  # case 2 : stanza definition (description) line. (Not ^BBB*)
+  elsif ( ($nmon_current_line_array[0] !~ "^BBB") and ($first_zzzz == 1)  and ($nmon_current_line_array[0] ne "ZZZZ") and
+	  ($nmon_current_line_array[0] ne "UARG") and ($nmon_current_line_array[0] ne "MEMPAGES16MB") and ($nmon_current_line_array[0] ne "MEMPAGES16GB") ) {
+    # it is not a data line but a description line : no timestamp and no number in second field.
+    # ex : BBBP,651,oslevel,"6100-07" ==> do not need. 
+    # ex : DISKRIO,T0002,0.0,0.0,0.0,0.0 ==> do not need.
+    # ex : MEM,Memory blueclient2,Real Free %,Virtual free %,Real free(MB),Virtual free(MB),Real total(MB),Virtual total(MB),Physical(MB) ==> need.
+    # TOP,%CPU Utilisation
+    # TOP,+PID,Time,%CPU,%Usr,%Sys,Threads,Size,ResText,ResData,CharIO,%RAM,Paging,Command,WLMclass
+    # TOP,+PID,Time,%CPU,%Usr,%Sys,Size,ResSet,ResText,ResData,ShdLib,MinorFault,MajorFault,Command
+    if ( $nmon_current_line_array[1] !~ "^T[0-9]+" and $nmon_current_line_array[1] !~ "^[0-9]+" ) {
+      print_to_log( $fh_handle, $debug, "Desc line> $nmon_line" );
+      my @hash;
+      chomp $nmon_line;
+      # split nmon lines in a table, each field (separated with ',') is a key.
+      my @keys_index = split ",", $nmon_line;
+      # first two field are identifier (AAA,BBB,ZZZZ => CPU_ALL, MEM, PAGE, PROC) and a small description, do not need.
+      # ex : NETPACKET,Network Packets blueclient2,en0-reads/s,lo0-reads/s,en0-writes/s,lo0-writes/s
+      # ex : fill $hash[1] with en0-reads/s, $hash[2] with lo0-reads/s and so on.
+      my $start_index = 2;
+      if ( $nmon_current_line_array[0] =~ "^RAWLPAR" ) {
+        $start_index = 4;
+      } elsif ( $nmon_current_line_array[0] =~ "^RAWCPUTOTAL" ) {
+        $start_index = 5;
+      }
+      for ( my $sub_counter = $start_index ; $sub_counter <= $#keys_index ; $sub_counter++ ) {
+        my $sub_key = $keys_index[$sub_counter];
+      	# normalize key, field key of stanza: CPU Total drvios1,..@CPU_ALL,CPU Total drvios1,User%,Sys%,Wait%,Idle%,Busy,PhysicalCPUs
+      	my $sub_key_norm = lc $sub_key;
+      	chomp $sub_key_norm;
+	
+        # normalize key. CPU Total drvios1,..@CPU_ALL,CPU Total drvios1,User%,Sys%,Wait%,Idle%,Busy,PhysicalCPUs
+        $sub_key_norm =~ s/\ $//g;          # replace ending spaces by nothing.
+        $sub_key_norm =~ s/^\%/per_/g;      # replace begining % by per_.
+        $sub_key_norm =~ s/\%$/_per/g;      # replace ending % by _per.
+        $sub_key_norm =~ s/\)$//g;          # replace ending parenthesis by nothing.
+        #$sub_key_norm =~ s/[ \)\/\(-]/_/g; # replace space, closing parenthesis, slash, opening parenthesis, - by _
+        $sub_key_norm =~ s/[ \)\(-]/_/g;    # replace space, closing parenthesis, opening parenthesis, - by _
+	if ( $nmon_current_line_array[0] =~ "^JFS" ) {
+        	$sub_key_norm =~ s/\//_FS_/g;	    # replace slash for JFSFILE & JFSINODE stanza by _FS_
+	} else {
+        	$sub_key_norm =~ s/\//_/g;	    # replace slash for other stanza by _
+		$sub_key_norm =~ s/^_//g;           # replace begining underscore by nothing.
+		$sub_key_norm =~ s/_$//g;           # replace ending underscore by nothing.
+	}
+	$sub_key_norm =~ s/__/_/g;          # replace two underscores by _.
+        
+        push @hash, $sub_key_norm;
+      }
+      # fill hash with table :
+      # ex : $hash_of_hashes{LPAR} = [ 'PhysicalCPU','virtualCPUs',... ]
+      $hash_of_hashes{$nmon_current_line_array[0]} = \@hash; ### ***
+	  	print_to_log( $fh_handle, $debug, "keys_hash> hash_of_hashes[$nmon_current_line_array[0]] = @hash\n");
+    } # end of $nmon_current_line_array[1] !~ "^T[0-9]+" and $nmon_current_line_array[1] !~ "^[0-9]+"
+  } # end of case 2 : description line 
+  
+  # case 3 : timestamp, a line begining with ZZZZ.
+  # ZZZZ,T0001,00:00:44,12-SEP-2012
+  elsif ( $nmon_current_line_array[0] eq $ZZZZ ) {
+    if ($zzzzcount != 0) {
+      if (($zzzznum++ % $zzzzcount) == 0) {
+	sleep($sleepseconds);
+        if ( $verbosezzzz ) {
+          my ($tsec,$tmin,$thour,$tmday,$tmon,$tyear,$twday,$tyday,$tisdst) = localtime();
+          printf("%02d:%02d:%02d --- %s", $thour, $tmin, $tsec, $nmon_line);
+        }
+      }
+    }    
+    # print a message at first value ever checked.
+    if ( $first_zzzz == 1 ) {
+      # removing all \n from information hash.
+      foreach my $key (keys %global_informations) {
+        chomp $global_informations{$key};
+      }
+      my @cpus_line = split " ", $global_informations{cpus};
+      $host_name    = $global_informations{host};
+      $host_name =~ s/-/_/g;
+      ### moved lines
+    	if ($host_name eq "") {
+      	$host_name="hostname-$$-rand(100000)";
+    	}
+			# if serial is null put this machine into undefined chassis.
+    	if ($global_informations{serialnumber} eq "") {
+      	$global_informations{serialnumber}="undefined";
+      }
+		  
+	  	print_to_log( $fh_handle, $debug, localtime()." | Extracting nmon statistics for $global_informations{host}\n" );
+	  	print_to_log( $fh_handle, $debug, localtime()." | System ($global_informations{build} $global_informations{aix} $global_informations{tl})\n" );
+	  	print_to_log( $fh_handle, $debug, localtime()." | nmon2graphite PID : [$$]\n" );
+	  
+      $first_zzzz = 0; 
+      if ( $verbosezzzz ) {
+        my ($tsec,$tmin,$thour,$tmday,$tmon,$tyear,$twday,$tyday,$tisdst) = localtime();
+        printf("%02d:%02d:%02d --- %s", $thour, $tmin, $tsec, $nmon_line);
+      }
+
+    } # end of 1st ZZZZ
+
+    if ($toptype > 0) { ### NEWTOP
+	process_newtop();
+    }
+
+    # change date into unix timestamp using timelocal, graphite use timestamp not date.
+    # ZZZZ,T0002,00:02:09,20-OCT-2014
+    if (($nmon_current_line_array[1] eq "T0003") or ($zzzznum==3)) {
+	sleep($wspsleep);
+    }
+    my $hour = $nmon_current_line_array[2]; # 00:02:09
+    my $date = $nmon_current_line_array[3]; # 20-OCT-2014
+    chomp $date;
+    my @date_array = split "-", $date;
+    my @hour_array = split ":", $hour;
+    # was using timelocal from Time (but not on all AIX) now using POSIX::mktime.
+    $timestamp = timelocal($hour_array[2],$hour_array[1],$hour_array[0],$date_array[0],$months{$date_array[1]},$date_array[2]);
+    $new_timestamp = $timestamp + $time_diff;
+    print_to_log( $fh_handle, $debug, localtime()." | Getting timestamp $new_timestamp = $nmon_current_line_array[2], $nmon_current_line_array[3]\n" );
+		print_to_log( $fh_handle, $debug, "time date : timestamp value> $nmon_current_line_array[2] $nmon_current_line_array[3] : $new_timestamp\n" );
+  	# for the web interface we need to list LPARs and physical servers, this is done by a json call.
+		# nmon.chassis.machine.list => nmon.physicalserver.LPAR.list
+		# nmon.chassis.list => nmon.physicalserver.list
+  } # end of case 3 : timestamp, a line begining with ZZZZ.
+  
+  # case 4 : real value line.
+  # it's now time to really feed graphite.
+  elsif ( $nmon_current_line_array[0] !~ "^BBB" ) {
+    # ignored timed real data
+    #   CPU01,CPU 1 drvios1,User%,Sys%,Wait%,Idle%
+    #   PCPU01,PCPU 1 drvios1,User ,Sys ,Wait ,Idle
+    #   SCPU01,SCPU 1 drvios1,User ,Sys ,Wait ,Idle 
+    # for the web interface we need to list LPARs and physical servers, this is done by a json call.
+		# nmon.chassis.machine.list => nmon.physicalserver.LPAR.list
+		# nmon.chassis.list => nmon.physicalserver.list
+		print_to_log( $fh_handle, $debug, "line_of_value_begin> $nmon_line\n" );
+    # need hash table key to find value meaning.
+    my $current_key = $nmon_current_line_array[0]; # CPU_ALL,T0001,1.6,2.5,0.1,95.8,,48
+    																							 # CPU_ALL,CPU Total drvios1,User%,Sys%,Wait%,Idle%,Busy,PhysicalCPUs
+    # first two values are not needed.
+    my $starting_counter = 2;
+    if ( $nmon_current_line_array[0] =~ "^RAWLPAR" ) {
+    	$starting_counter = 4;
+    } elsif ( $nmon_current_line_array[0] =~ "^RAWCPUTOTAL" ) {
+        $starting_counter = 5;
+    }
+    # emptying send_to_socked_string.
+    $send_to_socket_string = "";
+    $final_send_to_socket_string = "";
+
+    # emptying value if top process.
+    # TOP,%CPU Utilisation
+    # TOP,+PID,Time,%CPU,%Usr,%Sys,Threads,Size,ResText,ResData,CharIO,%RAM,Paging,Command,WLMclass
+    # TOP,+PID,Time,%CPU,%Usr,%Sys,Size,ResSet,ResText,ResData,ShdLib,MinorFault,MajorFault,Command
+    # UARG,+Time,PID,PPID,COMM,THCOUNT,USER,GROUP,FullCommand
+    #  TOP,43647930,T0002,5.27,1.06,4.20,1,1856,2308,1336,1692,0,6,sshd,Unclassified
+    #  UARG,T0002,43647930, 7864606,sshd , 1 , root, ipsec,sshd: root@pts/3
+
+    # for UARG stanza # NEWTOP
+    if ( ($current_key eq "UARG") and ($toptype > 1) ) { # NEWTOP
+	$prev_topindex = $topindex - 1;
+	if ( ($prev_topindex >= 0) and ($nmon_current_line_array[2] == $topdata[$prev_topindex][11]) ) {
+		chomp $nmon_current_line_array[8];
+		$nmon_current_line_array[8] =~ s/\ $//g;          # replace ending spaces by nothing.
+		$nmon_current_line_array[8] =~ s/[\ =\/\-\.\+\@\(\)\:\[\]]/_/g; #replace space, =, slash, -, ., +, @, (, ), :, [, ] by _
+		$nmon_current_line_array[8] =~ s/_$//g;           # replace ending underscore by nothing.
+		$nmon_current_line_array[8] =~ s/__/_/g;          # replace two underscores by _.
+		$nmon_current_line_array[8] =~ s/[<>]//g;	 # replace <, > by nothing.
+		$nmon_current_line_array[8] =~ s/^$/_null_/g;     # replace null by _null_.
+        	$topdata[$prev_topindex][13] = substr($nmon_current_line_array[8], 0, 55);
+	}
+	next;
+    }
+
+    if ( ($current_key eq "TOP") and ($toptype > 0) ) { # NEWTOP
+      if ($nmon_current_line_array[3] < $topcpuper) { # %CPU
+	 next;
+      }
+      $nmon_current_line_array[2]=0;	# clear TXXXX field      
+      # special case for TOP,+PID[1],Time[2],%CPU,%Usr,%Sys,Threads,Size,ResText,ResData,CharIO,%RAM,Paging[12],Command[13],WLMclass[14]
+      # TOP,1507382,T0004,0.12,0.12,0.00,5,960,0,960,0,0,0,gil = TCP/IP,Unclassified
+      # normalize Command[13] - "gil = TCP/IP"
+      chomp $nmon_current_line_array[13];
+      $nmon_current_line_array[13] =~ s/\ $//g;          # replace ending spaces by nothing.
+      $nmon_current_line_array[13] =~ s/[\ =\/\-\.\+\@\(\)\:\[\]]/_/g ; # replace space, =, slash, -, ., +, @, (, ), :, [, ] by _
+      $nmon_current_line_array[13] =~ s/_$//g;           # replace ending underscore by nothing.
+      $nmon_current_line_array[13] =~ s/__/_/g;          # replace two underscores by _.
+      $nmon_current_line_array[13] =~ s/[<>]//g;	 # replace <, > by nothing.
+      $nmon_current_line_array[13] =~ s/^$/_null_/g;     # replace null by _null_.
+      # NEWTOP
+      $topdata[$topindex][0] = $new_timestamp;
+      $topdata[$topindex][1] =  $nmon_current_line_array[3];
+      $topdata[$topindex][2] =  $nmon_current_line_array[4];
+      $topdata[$topindex][3] =  $nmon_current_line_array[5];
+      $topdata[$topindex][4] =  $nmon_current_line_array[6];
+      $topdata[$topindex][5] =  $nmon_current_line_array[7];
+      $topdata[$topindex][6] =  $nmon_current_line_array[8];
+      $topdata[$topindex][7] =  $nmon_current_line_array[9];
+      $topdata[$topindex][8] =  $nmon_current_line_array[10];
+      $topdata[$topindex][9] =  $nmon_current_line_array[11];
+      $topdata[$topindex][10] = $nmon_current_line_array[12];
+      $topdata[$topindex][11] = $nmon_current_line_array[1];
+      $topdata[$topindex][12] = $nmon_current_line_array[13];
+      $topdata[$topindex][13] = "unknfullcmd"; # in cas  no UARG stanza
+      $pgspoutsize = $nmon_current_line_array[7] - $nmon_current_line_array[9]; # size - resdata, 
+      if ($pgspoutsize < 0) {
+	$pgspoutsize = 0;
+      }
+      $topdata[$topindex][14] = $pgspoutsize;
+      $topindex++;
+
+      next; ###
+
+    }
+    my $current_key_norm = lc $current_key; # stanza : CPU_ALL
+    chomp $current_key_norm;
+    $current_key_norm =~ "s/\%/_per/g";
+    
+    $metricscount = 15;
+    $firstdiskstanza = 1;
+
+    my @tmphashes = @{$hash_of_hashes{$current_key}};
+    if (($nmon_line !~ /^RAW/) and $#nmon_current_line_array != ($#tmphashes + 2)) {
+        printf("\t\tline skipped due to missing values : %s,%s,%s,%s, .....\n", $nmon_current_line_array[0],$nmon_current_line_array[1],$nmon_current_line_array[2],$nmon_current_line_array[3]);
+        next;
+    }
+
+    # for each element in the array
+    foreach (@{$hash_of_hashes{$current_key}}) {	# for one NMON line of stanza, CPU_ALL,CPU Total drvios1,User%,Sys%,Wait%,Idle%,Busy,PhysicalCPUs
+      if ( $nmon_current_line_array[$starting_counter] eq "" ) { # CPU_ALL,T0001,1.6,2.5,0.1,95.8,,48    																							 							   # CPU_ALL,CPU Total drvios1,User%,Sys%,Wait%,Idle%,Busy,PhysicalCPUs
+	$nmon_current_line_array[$starting_counter]="0";
+        if ( $debug ) {
+        	print "11111. !exists \$nmon_current_line_array[$starting_counter]\n";
+        	print "line# $lineno : $nmon_line\n";
+      	}
+      }
+      chomp $nmon_current_line_array[$starting_counter];
+      # normalize key.
+      my $key = $_;  # field key of stanza: CPU Total drvios1,..@CPU_ALL,CPU Total drvios1,User%,Sys%,Wait%,Idle%,Busy,PhysicalCPUs
+      my $key_norm = $key;
+      chomp $key_norm; ### ***
+	  	$skip=0;
+	  
+	  	# if the value is not skipped (cf. last #).
+      if ( $skip != 1 ) {
+	    	print_to_log( $fh_handle, $debug, "c_key_norm key_norm val> current_key_norm =  [$current_key_norm] ; key_norm = [$key_norm] ; val = $nmon_current_line_array[$starting_counter]\n" );
+        # normalize key. CPU Total drvios1,..@CPU_ALL,CPU Total drvios1,User%,Sys%,Wait%,Idle%,Busy,PhysicalCPUs
+        # special case for TOP,+PID[1],Time[2],%CPU,%Usr,%Sys,Threads,Size,ResText,ResData,CharIO,%RAM,Paging[12],Command[13],WLMclass[14]
+        # TOP,1507382,T0004,0.12,0.12,0.00,5,960,0,960,0,0,0,gil = TCP/IP,Unclassified
+
+	# special case for current_key begining with ^disk (disksize, diskbusy, diskxfer, ...).
+	# need to be list by the nmon2graphite web interface.
+
+	if ( ($firstdiskstanza == 1) and ($current_key_norm =~ m/^disk/) ) {
+	  $firstdiskstanza = 0;
+	}
+
+	# it's a "standard" line
+        $send_to_socket_string = "nmon.$global_informations{serialnumber}.$host_name.$current_key_norm.$key_norm $nmon_current_line_array[$starting_counter] $new_timestamp\n";
+	$final_send_to_socket_string = $final_send_to_socket_string.$send_to_socket_string;
+	print_to_log( $fh_handle, $debug, "normal line> nmon.$global_informations{serialnumber}.$host_name.$current_key_norm.$key_norm $nmon_current_line_array[$starting_counter] $new_timestamp\n" );
+	if ( --$metricscount == 0 ) {
+	  $metricscount = 15;
+	  $final_send_to_socket_string =~ s/\.(diskbusy|diskread|diskwrite|diskxfer|diskrxfer|diskbsize|diskrio|diskwio|diskavgrio|diskavgwio|diskserv|diskreadserv|diskwriteserv|diskwait|emcbsize|emcbusy|emcread|emcwrite|emcxfer|emcserv)([0-9]+)\./\.$1\./g;
+	  if ($final_send_to_socket_string ne "") {   
+		print $socket $final_send_to_socket_string;
+	  }
+	  $final_send_to_socket_string = "";
+	}
+        $starting_counter++;
+      } else { # hdisk* skipped
+      	$starting_counter++;
+    	} # end of non-skipped value of stanza
+    } # end of for each element in the array
+    $final_send_to_socket_string =~ s/\.(diskbusy|diskread|diskwrite|diskxfer|diskrxfer|diskbsize|diskrio|diskwio|diskavgrio|diskavgwio|diskserv|diskreadserv|diskwriteserv|diskwait|emcbsize|emcbusy|emcread|emcwrite|emcxfer|emcserv)([0-9]+)\./\.$1\./g;
+    if ($final_send_to_socket_string ne "") {   
+	print $socket $final_send_to_socket_string;    
+    }
+  } # end of case 4 : real value line
+  
+  # case 5 : it's the last line
+  elsif ( $nmon_current_line_array[2] =~ "^ending" ) {
+    if ($toptype > 0) { ### NEWTOP
+        process_newtop();
+    }
+    print_to_log( $fh_handle, $debug, "This is the normal end of nmon file processed by PID $$\n" );
+    if ($graphite_box_ip ne '') {
+	$socket->shutdown(1);
+	close $socket;
+    }
+    close ($fh_handle);
+    exit 0;
+  } # end of case 5 : the last line
+}
+if ($toptype > 0) { ### NEWTOP
+	process_newtop();
+}
+print_to_log( $fh_handle, $debug, "This is the end of nmon file processed by PID $$\n" );
+if ($graphite_box_ip ne '') {
+    $socket->shutdown(1);
+    close $socket;
+}
+close ($fh_handle);
+exit 0;

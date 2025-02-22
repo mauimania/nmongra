@@ -1,0 +1,45 @@
+#!/bin/bash
+
+set -x
+
+#########################
+NMONGRAID=samp
+NMONGRADIR=.
+PORT80=11082
+PORT2003_2004=13003-13004
+#########################
+PORT2023_2024=13023-13024
+PORT8125=19125
+PORT8126=19126
+
+docker stop nmongra_${NMONGRAID}
+sleep 3
+docker rm nmongra_${NMONGRAID}
+sleep 3
+
+docker run -d --name nmongra_${NMONGRAID} --restart=always\
+	-p ${PORT80}:80\
+	-p ${PORT2003_2004}:2003-2004\
+	-p ${PORT2023_2024}:2023-2024\
+	-p ${PORT8125}:8125/udp\
+	-p ${PORT8126}:8126\
+	-e GRAPHITE_TIME_ZONE='Asia/Seoul'\
+	-e CARBON_AGGREGATOR_DISABLED=1 \
+	-e STATSD_DISABLED=1 \
+	-v ${NMONGRADIR}/conf/nginx.conf:/etc/nginx/nginx.conf\
+	-v ${NMONGRADIR}/conf/storage-schemas.conf:/opt/graphite/conf/storage-schemas.conf\
+	-v ${NMONGRADIR}/conf/graphTemplates.conf:/opt/graphite/conf/graphTemplates.conf\
+	-v ${NMONGRADIR}/conf/carbon.conf:/opt/graphite/conf/carbon.conf\
+	-v ${NMONGRADIR}/whisper:/opt/graphite/storage/whisper\
+	-v ${NMONGRADIR}/conf/nginx-graphite-statsd.conf:/etc/nginx/sites-enabled/graphite-statsd.conf\
+	-v ${NMONGRADIR}/tools/nmon2graphite:/opt/graphite/static/html/nmon2graphite\
+	-v ${NMONGRADIR}/local_settings.py:/opt/graphite/webapp/graphite/local_settings.py\
+	mauimania/nmongra:1.1.8-8
+
+sleep 5
+docker exec nmongra_${NMONGRAID} sh -c "/usr/bin/spawn-fcgi -s /var/run/fcgiwrap/fcgiwrap.sock /usr/bin/fcgiwrap; chmod a+rw /var/run/fcgiwrap/fcgiwrap.sock"
+sleep 2
+docker exec nmongra_${NMONGRAID} sh -c "cd /opt/graphite/static/html; chown -R nginx.nginx nmon2graphite; chmod -R a+rx nmon2graphite"
+sleep 2
+docker ps | grep nmongra_${NMONGRAID} | grep -v grep
+
