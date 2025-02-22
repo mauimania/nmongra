@@ -13,9 +13,11 @@ PORT8125=19125
 PORT8126=19126
 
 docker stop nmongra_${NMONGRAID}
-sleep 3
+sleep 2
 docker rm nmongra_${NMONGRAID}
-sleep 3
+sleep 2
+mkdir -p ${NMONGRADIR}/whisper
+sleep 2
 
 docker run -d --name nmongra_${NMONGRAID} --restart=always\
 	-p ${PORT80}:80\

@@ -14,7 +14,7 @@ nmongra is based on the following technologies:
 . Bash script
 . etc
 
-In the use case I access nmongra at http://192.168.192.233:11082/nmon2graphite/
+In the use case I access nmongra at http://192.168.192.233:11082/nmon2graphite/   (trailing / needed)
 I run nmongra on Ubuntu 22.04 VM with docker installed and added $USER to docker group.
 The VM ip address is 192.168.192.233.
 The port 11082 on VM is mapped to port 80 on docker container running nmongra.
@@ -88,7 +88,7 @@ $ sudo su
 # find ../whisper/nmon -type f -name usbms[0-9].wsp -exec rm -f {} \;
 # sudo ./nmondisksplit.sh ../whisper/nmon 42
 
-- access nmongra at http://192.168.192.233:11082/nmon2graphite/
+- access nmongra at http://192.168.192.233:11082/nmon2graphite/     (trailing / needed)
   press ctrl+'-' keys to use smaller fonts for better view
 
 - tips
