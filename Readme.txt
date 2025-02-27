@@ -84,6 +84,7 @@ It is strongly recommended to feed nmon log data at least twice.
 The time series data for nmon is stored in whisper directory which should have large free space.
 You can use -t option of feed-nmon2graphite and '-d' field on web UI for old nmon log files.
 -t option can be used to timeshift old nmon data or you should have free space a lot in whisper directory to save long duration data.
+(Refer to Readme-old-nmon-log.txt for information.)
 
 - for all disks view
 $ cd tools
