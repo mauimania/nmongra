@@ -25,11 +25,13 @@ The port 11082 on VM is mapped to port 80 on docker container running nmongra.
 
 - file rungra_samp : start nmongra
 NMONGRAID=samp
-PORT80=11082
-PORT2003_2004=13003-13004
+PORT80=11082               # VM port 11082 mapped to port 80 on docker container running nmongra
+PORT2003_2004=13003-13004  # VM port 13003 is mapped to port 2003 on docker container running graphite carbon
 
 - file stopgra_samp : stop nmongra
 NMONGRAID=samp
+
+- You can run multiple nmongra instances simultaneously on a VM with unique NMONGRAID/PORT80/PORT2003_2004.
 
 - file conf/storage-schemas.conf
 [nmon]
