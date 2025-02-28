@@ -37,7 +37,9 @@ NMONGRAID=samp
 [nmon]
 pattern = ^nmon\.
 retentions = 60s:30d # store 60s data for 30 days
-# in this case, nmon sampling interval 60, 30, 20, etc : OK, but nmon sampling interval 120, 180, 240, 300, etc : Not OK
+# In this case, nmon sampling interval 60, 30, 20, etc : OK, but nmon sampling interval 120, 180, 240, 300, etc : Not OK
+# You cannot feed   2025/02/20 data after Mar 22 2025
+# You cannot access 2025/02/20 data after Mar 22 2025
 
 - file tools/nmon2graphite/index.cgi
    id=\"period1_from_time_value\" value=\"202502200830\"
