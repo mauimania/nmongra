@@ -105,11 +105,13 @@ $ sudo su
 
 - tips
 
-   useful flags of feed-nmon2graphite
+   . useful flags of feed-nmon2graphite
      -g ignore DISK* stanza (ignore DISK*, DISKBUSY, DISKSERV, DISKREADSERV, DISKWRITESERV, DISKWAIT)
      -y %CPU (ignore TOP lower than CPU%)
      -x 0: no TOP, 1: TOPcmd grouping, 2: default, TOPcmd.UARGfullcmd grouping
      -t time difference in seconds (timeshift old nmon data, use '-d' field on web UI)
 
-  nmongra backup
+   . access Graphite dashboard for your own graphs  at http://192.168.192.233:11082/
+
+   . nmongra backup
 $ rsync -av --progress nmongra/* nmongra-$(date +"%y%m%d_%H%M") --exclude whisper/*
