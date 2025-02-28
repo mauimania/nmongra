@@ -1,4 +1,4 @@
-# nmongra - Another nmon log analyzer
+# nmongra - Another nmon log analyzer based on docker container
 
 I improved the program authored by Benoit C chmod666.org.
 . Program name: nmon2graphite (nmongra by mauimania)
