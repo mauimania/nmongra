@@ -50,11 +50,14 @@ retentions = 60s:30d # store 60s data for 30 days
 - file tools/nmon2graphite/nmon2graphite.js
 var graphite_url = "192.168.192.233:11082";
 
+- delete old whisper data if needed
+$ sudo rm -rf whisper/carbon/* whisper/nmon/*
+$ mkdir -p whisper
+
 - start nmongra (run stopgra_samp to stop nmongra)
 $ ./rungra_samp
 
 - feed graphite backend with nmon log
-$ mkdir -p whisper
 $ ./feed-nmon2graphite -h
 Can't locate Switch.pm in @INC (you may need to install the Switch module)
 $ sudo apt-get install libswitch-perl
