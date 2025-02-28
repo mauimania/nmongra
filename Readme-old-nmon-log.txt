@@ -37,7 +37,7 @@ $ cd nmon
 $ ../tools/feed-nmon2graphite -i 192.168.192.233 -p 13003 -c 30 -s 7 -x 1 -v -y 1.0 -f 180 -t 7776000  < sampdb01_241201_0000.nmon
 $ ../tools/feed-nmon2graphite -i 192.168.192.233 -p 13003 -c 30 -s 7 -x 1 -v -y 1.0 -f 060 -t 7776000  < sampdb01_241201_0000.nmon
 
-It is strongly recommended to feed nmon log data at least twice.
+It is strongly recommended to feed nmon log data at least twice. (very important)
 
 - for all disks view
 $ cd tools

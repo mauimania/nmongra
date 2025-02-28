@@ -77,17 +77,18 @@ usage: ./feed-nmon2graphite [-h] [-l log_file] [-i graphite_server_ip] [-p graph
   -y %CPU (ignore TOP lower than CPU%)
   -x 0: no TOP, 1: TOPcmd grouping, 2: default, TOPcmd.UARGfullcmd grouping
   -v verbose with ZZZZ stanza
-  -t time difference in seconds
+  -t time difference in seconds (Refer to Readme-old-nmon-log.txt)
 
 $ cd nmon
 $ ../tools/feed-nmon2graphite -i 192.168.192.233 -p 13003 -c 30 -s 7 -x 1 -v -y 1.0 -f 180 < sampdb01_250220_0000.nmon
 $ ../tools/feed-nmon2graphite -i 192.168.192.233 -p 13003 -c 30 -s 7 -x 1 -v -y 1.0 -f 060 < sampdb01_250220_0000.nmon
 
-It is strongly recommended to feed nmon log data at least twice.
+It is strongly recommended to feed nmon log data at least twice. (very important)
+
 The time series data for nmon is stored in whisper directory which should have large free space.
 You can use -t option of feed-nmon2graphite and '-d' field on web UI for old nmon log files.
 -t option can be used to timeshift old nmon data or you should have free space a lot in whisper directory to save long duration data.
-(Refer to Readme-old-nmon-log.txt for information.)
+(Refer to Readme-old-nmon-log.txt for information)
 
 - for all disks view
 $ cd tools
