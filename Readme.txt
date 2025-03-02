@@ -63,7 +63,7 @@ var graphite_url = "192.168.192.233:11082";
 $ sudo rm -rf whisper/carbon/* whisper/nmon/*
 $ mkdir -p whisper
 
-- start nmongra (run stopgra_samp to stop nmongra)
+- run nmongra
 $ ./rungra_samp
 
 - feed graphite backend with nmon log
