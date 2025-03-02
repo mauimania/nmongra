@@ -104,7 +104,12 @@ $ cd ../tools
 $ sudo su
 # find ../whisper/nmon -type f -name cd[0-9].wsp -exec rm -f {} \;
 # find ../whisper/nmon -type f -name usbms[0-9].wsp -exec rm -f {} \;
-# sudo ./nmondisksplit.sh ../whisper/nmon 42
+# ./nmondisksplit.sh ../whisper/nmon 42
+
+  You can ignore some messages.
+     find: ??./9040-MR9-SERIALX/sampdb01/diskwait000??: No such file or directory
+     ./9040-MR9-SERIALX/sampdb01/diskavgrio000 does not exist!
+     Directory: ./9040-MR9-SERIALX/sampdb01/diskavgrio000
 
 - access nmongra at http://192.168.192.233:11082/nmon2graphite/       (trailing / needed)
 
