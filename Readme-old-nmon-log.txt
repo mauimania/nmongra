@@ -29,7 +29,7 @@ $ ./stopgra_samp
 - delete whisper data
 $ sudo rm -rf whisper/carbon/* whisper/nmon/*
 
-- start nmongra
+- run nmongra
 $ ./rungra_samp
 
 - feed graphite backend with nmon log using timeshift option
@@ -40,7 +40,7 @@ $ ../tools/feed-nmon2graphite -i 192.168.192.233 -p 13003 -c 30 -s 7 -x 1 -v -y 
 It is strongly recommended to feed nmon log data at least twice. (very important)
 
 - for all disks view
-$ cd tools
+$ cd ../tools
 $ sudo su
 # find ../whisper/nmon -type f -name cd[0-9].wsp -exec rm -f {} \;
 # find ../whisper/nmon -type f -name usbms[0-9].wsp -exec rm -f {} \;

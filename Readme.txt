@@ -23,12 +23,16 @@ The port 11082 on VM is mapped to port 80 on docker container running nmongra.
    https://www.digitalocean.com/community/tutorials/how-to-install-and-use-docker-on-ubuntu-22-04
    https://docs.docker.com/engine/install/ubuntu/
 
-- file rungra_samp : start nmongra
+- git cloning
+$ git clone https://github.com/mauimania/nmongra.git
+$ cd nmongra
+
+- file rungra_samp (script to run nmongra)
 NMONGRAID=samp
 PORT80=11082               # VM port 11082 mapped to port 80 on docker container running nmongra
 PORT2003_2004=13003-13004  # VM port 13003 is mapped to port 2003 on docker container running graphite carbon
 
-- file stopgra_samp : stop nmongra
+- file stopgra_samp (script to stop nmongra)
 NMONGRAID=samp
 
 - You can run multiple nmongra instances simultaneously on a VM with unique NMONGRAID/PORT80/PORT2003_2004.
@@ -40,6 +44,7 @@ retentions = 60s:30d # store 60s data for 30 days
 # In this case, nmon sampling interval 60, 30, 20, etc : OK, but nmon sampling interval 120, 180, 240, 300, etc : Not OK
 # You cannot feed   2025/02/20 data after Mar 22 2025
 # You cannot access 2025/02/20 data after Mar 22 2025
+# If you read Readme.txt after Mar 22 2025, please refer to Readme-old-nmon-log.txt.
 
 - file tools/nmon2graphite/index.cgi
    id=\"period1_from_time_value\" value=\"202502200830\"
@@ -62,11 +67,11 @@ $ mkdir -p whisper
 $ ./rungra_samp
 
 - feed graphite backend with nmon log
-$ ./feed-nmon2graphite -h
+$ ./tools/feed-nmon2graphite -h
 Can't locate Switch.pm in @INC (you may need to install the Switch module)
 $ sudo apt-get install libswitch-perl
 
-$ ./feed-nmon2graphite -h
+$ ./tools/feed-nmon2graphite -h
 usage: ./feed-nmon2graphite [-h] [-l log_file] [-i graphite_server_ip] [-p graphite_server_port] [-a] [-g]
           [-c ZZZZ_count] [-s sleep_seconds] [-f sleep_seconds] [-y %CPU] [-x toptype] [-v] [-t time_diff]
   -h print help
@@ -95,7 +100,7 @@ You can use -t option of feed-nmon2graphite and '-d' field on web UI for old nmo
 (Refer to Readme-old-nmon-log.txt for information)
 
 - for all disks view
-$ cd tools
+$ cd ../tools
 $ sudo su
 # find ../whisper/nmon -type f -name cd[0-9].wsp -exec rm -f {} \;
 # find ../whisper/nmon -type f -name usbms[0-9].wsp -exec rm -f {} \;
