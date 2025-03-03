@@ -1,0 +1,92 @@
+#!/usr/bin/perl
+# Program name: nmonextract
+# Purpose: perl script to extract nmon data for the time period
+# Author: mauimania
+
+use strict;
+use warnings;
+use Switch;
+use Time::Local;
+use Getopt::Long;
+
+# sub function to print help
+sub print_help {
+  print STDERR << "EOF";
+usage: $0 [-h] [-b begin_time] [-e end_time]
+  -h print help
+  -b begin_time ( YYYYMMDD[HHMM] )
+  -e end_time   ( YYYYMMDD[HHMM] )
+EOF
+  exit 1;
+}
+
+my $help;
+my $begintime="19700101000000";
+my $endtime="20991231235959";
+my $beginepoch = 0;
+my $endepoch = 9999999999;
+my $epoch = 0;
+my $nmon_line;
+my @nmon_current_line_array;
+my $timestr;
+my $hour;
+my $date;
+my @hour_array;
+my @date_array;
+my $inctstr;
+my $re;
+
+my %months = ( "JAN", "00", "FEB", "01", "MAR", "02", "APR", "03", "MAY", "04", "JUN", "05", "JUL", "06", "AUG", "07", "SEP", "08", "OCT", "09", "NOV", "10", "DEC", "11");
+my %numericmonths = ( "01", "00", "02", "01", "03", "02", "04", "03", "05", "04", "06", "05", "07", "06", "08", "07", "09", "08", "10", "09", "11", "10", "12", "11");
+
+print_help if ( ! GetOptions('h' => \$help, 'b=s' => \$begintime, 'e=s' => \$endtime) or defined $help );
+
+if ($begintime !~ /\d{8,12}/) {
+	print_help;
+	exit 1;
+} else {
+	$timestr = "19700101000000";
+	substr($timestr, 0, length($begintime)) = $begintime;
+	$beginepoch = timelocal(substr($timestr,12,2),substr($timestr,10,2),substr($timestr,8,2),substr($timestr,6,2),$numericmonths{substr($timestr,4,2)},substr($timestr,0,4));
+}
+if ($endtime !~ /\d{8,12}/) {
+	print_help;
+	exit 1;
+} else {
+	$timestr = "20991231235959";
+	substr($timestr, 0, length($endtime)) = $endtime;
+	$endepoch = timelocal(substr($timestr,12,2),substr($timestr,10,2),substr($timestr,8,2),substr($timestr,6,2),$numericmonths{substr($timestr,4,2)},substr($timestr,0,4));
+}
+if ($beginepoch >= $endepoch) {
+	print_help;
+	exit 1;
+}
+
+# reads standard input
+while ( $nmon_line = <STDIN> ) {
+	if ($nmon_line !~ /,T\d{4,4},/) {
+		print $nmon_line;
+        	next;
+	}
+	@nmon_current_line_array = split ",", $nmon_line;
+	if ( $nmon_current_line_array[0] eq "ZZZZ" ) {
+		$hour = $nmon_current_line_array[2]; # 00:02:09
+		$date = $nmon_current_line_array[3]; # 20-OCT-2014
+		chomp $date;
+		@hour_array = split ":", $hour;
+		@date_array = split "-", $date;
+		$epoch = timelocal($hour_array[2],$hour_array[1],$hour_array[0],$date_array[0],$months{$date_array[1]},$date_array[2]);
+		if (($epoch >= $beginepoch) and ($epoch <= $endepoch)) {
+			$inctstr = $nmon_current_line_array[1];
+			print $nmon_line;
+		} else {
+			$inctstr = "Txxxx";
+		}
+		$re = qr/,$inctstr,/;
+		next;
+	} else {
+		$nmon_line =~ /$re/ and print $nmon_line;
+	}
+}
+
+exit 0;
