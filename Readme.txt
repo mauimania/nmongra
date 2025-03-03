@@ -131,6 +131,8 @@ $ sudo su
          -h print help
          -b begin_time ( YYYYMMDD[HHMM] )
          -e end_time   ( YYYYMMDD[HHMM] )
+     ex) extract nmon log data from 2025/02/20 08:30 to 2025/02/20 11:30
+        $ nmonextract -b 202502200830 -e 202502201130 < sampdb01_250220_0000.nmon > sampdb01_250220_0830-1130.nmon
 
    . nmongra backup
        $ rsync -av --progress nmongra/* nmongra-$(date +"%y%m%d_%H%M") --exclude whisper/*
