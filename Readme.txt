@@ -125,7 +125,7 @@ $ sudo su
 
    . access Graphite dashboard for your own graphs  at http://192.168.192.233:11082/
 
-   . extract nmon data for the time period to reduce the amount of data to feed
+   . extract nmon data for the time period to reduce the amount of data and time to feed
      $ ./tools/nmonextract -h
        usage: ./nmonextract [-h] [-b begin_time] [-e end_time]
          -h print help
