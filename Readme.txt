@@ -136,3 +136,6 @@ $ sudo su
 
    . nmongra backup
        $ rsync -av --progress nmongra/* nmongra-$(date +"%y%m%d_%H%M") --exclude whisper/*
+
+   . Ready-to-use virtual machines : https://www.osboxes.org/ubuntu/
+
