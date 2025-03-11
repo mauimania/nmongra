@@ -1,0 +1,9 @@
+#
+### root crontab entries to feed nmon log data to nmongra
+#
+# create a fifo stack and start nmon - specify fifo stack file as nmon output file
+0 * * * * mkdir -p /tmp/nmongra; mkfifo /tmp/nmongra/$(date +\%Y-\%m-\%d-\%H-\%M)_nmon.fifo; /usr/bin/nmon -F /tmp/nmongra/$(date +\%Y-\%m-\%d-\%H-\%M)_nmon.fifo -I 1.0 -O -V -L -M -^ -P -l 64 -d -t -A -s 60 -c 1440
+# start nmongra 10 seconds after creation of the nmon fifo stack
+0 * * * * sleep 10; PATH_TO/feed-nmon2graphite -i 192.168.192.233 -p 13003 < /tmp/nmongra/$(date +\%Y-\%m-\%d-\%H-\%M)_nmon.fifo
+# wipe old fifo stacks
+0 1 * * * find /tmp/nmongra -type f -name *_nmon.fifo -mtime +7 | xargs rm -f > /dev/null 2>&1

@@ -137,5 +137,7 @@ $ sudo su
    . nmongra backup
        $ rsync -av --progress nmongra/* nmongra-$(date +"%y%m%d_%H%M") --exclude whisper/*
 
+   . You may feed nmon log data to nmongra in real time via cron - refer to crontab_to_feed.txt
+
    . Ready-to-use virtual machines : https://www.osboxes.org/ubuntu/
 
