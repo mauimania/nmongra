@@ -42,8 +42,8 @@ NMONGRAID=samp
 pattern = ^nmon\.
 retentions = 60s:30d,5m:180d # store 60s data for 30 days, store 5m data for 180 days
 # In this case, nmon sampling interval 60, 30, 20, etc : OK, but nmon sampling interval 120, 180, 240, 300, etc : Not OK
-# You cannot feed   2025/02/20 data after Mar 22 2025
-# You cannot access 2025/02/20 data after Mar 22 2025
+# You cannot feed   2025/02/20 data after Mar 22 2025 for 60s sampling resolution, however for 5m aggregate sampling .....
+# You cannot access 2025/02/20 data after Mar 22 2025 for 60s sampling resolution, however for 5m aggregate sampling .....
 # If you read Readme.txt after Mar 22 2025, please refer to Readme-old-nmon-log.txt.
 
 - file tools/nmon2graphite/index.cgi
