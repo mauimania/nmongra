@@ -10,7 +10,7 @@ Time Between Two Dates
 - file conf/storage-schemas.conf
 [nmon]
 pattern = ^nmon\.
-retentions = 60s:14d # store 60s data for 14 days
+retentions = 60s:14d,5m:90d   # store 60s data for 14 days, store 5m data for 90 days
 # in this case, nmon sampling interval 60, 30, 20, 10, etc : OK, but nmon sampling interval 120, 180, 240, 300, etc : Not OK
 
 - file tools/nmon2graphite/index.cgi

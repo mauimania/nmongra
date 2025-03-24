@@ -40,7 +40,7 @@ NMONGRAID=samp
 - file conf/storage-schemas.conf
 [nmon]
 pattern = ^nmon\.
-retentions = 60s:30d # store 60s data for 30 days
+retentions = 60s:30d,5m:180d # store 60s data for 30 days, store 5m data for 180 days
 # In this case, nmon sampling interval 60, 30, 20, etc : OK, but nmon sampling interval 120, 180, 240, 300, etc : Not OK
 # You cannot feed   2025/02/20 data after Mar 22 2025
 # You cannot access 2025/02/20 data after Mar 22 2025
