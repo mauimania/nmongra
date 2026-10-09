@@ -47,10 +47,10 @@ retentions = 60s:30d,5m:180d # store 60s data for 30 days, store 5m data for 180
 # If you read Readme.txt after Mar 22 2025, please refer to Readme-old-nmon-log.txt.
 
 - file tools/nmon2graphite/index.cgi
-   id=\"period1_from_time_value\" value=\"202502200830\"
-   id=\"period1_to_time_value\"   value=\"202502201830\"
-   id=\"period2_from_time_value\" value=\"202502200000\"
-   id=\"period2_to_time_value\"   value=\"202502201900\"
+   id=\"period1_from_time_value\" value=\"202610100830\"
+   id=\"period1_to_time_value\"   value=\"202610101830\"
+   id=\"period2_from_time_value\" value=\"202610100000\"
+   id=\"period2_to_time_value\"   value=\"202610101900\"
 
 - file tools/nmon2graphite/query-date-time.txt
 2025-02-20 08:30
@@ -89,8 +89,8 @@ usage: ./feed-nmon2graphite [-h] [-l log_file] [-i graphite_server_ip] [-p graph
   -t time difference in seconds (Refer to Readme-old-nmon-log.txt)
 
 $ cd nmon
-$ ../tools/feed-nmon2graphite -i 192.168.192.233 -p 13003 -c 30 -s 7 -x 1 -v -y 1.0 -f 180 < sampdb01_250220_0000.nmon
-$ ../tools/feed-nmon2graphite -i 192.168.192.233 -p 13003 -c 30 -s 7 -x 1 -v -y 1.0 -f 060 < sampdb01_250220_0000.nmon
+$ ../tools/feed-nmon2graphite -i 192.168.192.233 -p 13003 -c 30 -s 7 -x 1 -v -y 1.0 -f 180 < sampdb01_261010_0000.nmon
+$ ../tools/feed-nmon2graphite -i 192.168.192.233 -p 13003 -c 30 -s 7 -x 1 -v -y 1.0 -f 060 < sampdb01_261010_0000.nmon
 
 It is strongly recommended to feed nmon log data at least twice. (very important)
 
@@ -132,7 +132,7 @@ $ sudo su
          -b begin_time ( YYYYMMDD[HHMM] )
          -e end_time   ( YYYYMMDD[HHMM] )
      ex) extract nmon log data from 2025/02/20 08:30 to 2025/02/20 11:30
-        $ nmonextract -b 202502200830 -e 202502201130 < sampdb01_250220_0000.nmon > sampdb01_250220_0830-1130.nmon
+        $ nmonextract -b 202610100830 -e 202610101130 < sampdb01_261010_0000.nmon > sampdb01_261010_0830-1130.nmon
 
    . nmongra backup
        $ rsync -av --progress nmongra/* nmongra-$(date +"%y%m%d_%H%M") --exclude whisper/*
